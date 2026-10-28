@@ -1,0 +1,6 @@
+{
+  "name": "MCQ Content Manager",
+  "description": "Smart, mobile-responsive educational MCQ parser, hierarchical folder organizer, bilingual content processor, answer verification, and interactive practice simulator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
