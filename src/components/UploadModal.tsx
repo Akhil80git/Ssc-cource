@@ -71,6 +71,18 @@ Explanation: Gujarat possesses the longest coastline in India, extending over 1,
 उत्तर: B
 व्याख्या: हीलियम (He) और नियॉन (Ne) दोनों अक्रिय गैसें हैं।`,
 
+  horizontalOptions: `1. किसी संख्या में 25% वृद्धि और फिर 20% कमी की जाती है। कुल परिवर्तन?
+(A) 5% वृद्धि (B) 5% कमी (C) कोई परिवर्तन नहीं (D) 2% वृद्धि
+उत्तर: (C)
+
+2. किसी वस्तु की कीमत 40% बढ़ी। खर्च समान रखने के लिए खपत कितने प्रतिशत घटाएँ?
+(A) 25% (B) 28 4/7% (C) 30% (D) 33 1/3%
+उत्तर: (A)
+
+3. A की आय B से 25% अधिक है। B की आय A से कितने प्रतिशत कम है?
+(A) 20% (B) 25% (C) 16 2/3% (D) 15%
+उत्तर: (A)`,
+
   inline: `1. What is the SI unit of electric current? (A) Volt (B) Ampere (C) Ohm (D) Watt Answer: B Explanation: Ampere is the base unit of electric current.
 2. भारत की प्रथम महिला राष्ट्रपति कौन थीं? (A) प्रतिभा पाटिल (B) सरोजिनी नायडू (C) इंदिरा गांधी (D) द्रौपदी मुर्मू उत्तर: A
 3. Which gas is known as Laughing Gas? (1) N2O (2) NO2 (3) CO2 (4) SO2 Ans: 1`,
@@ -422,6 +434,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   className="px-2.5 py-1 text-xs font-medium text-indigo-300 bg-slate-900 border border-indigo-800/60 rounded-md hover:bg-indigo-950/60 transition-colors"
                 >
                   मानक हिंदी/English
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRawText(SAMPLE_TEMPLATES.horizontalOptions)}
+                  className="px-2.5 py-1 text-xs font-medium text-emerald-300 bg-slate-900 border border-emerald-800/60 rounded-md hover:bg-emerald-950/60 transition-colors"
+                >
+                  एक लाइन में चारों विकल्प (A) (B) (C) (D)
                 </button>
                 <button
                   type="button"

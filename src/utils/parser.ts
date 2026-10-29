@@ -137,6 +137,87 @@ export function extractInlineOptions(text: string): {
 
   return { sourceNumber, questionText, options, inlineAnswer, explanation };
 }
+/**
+ * Extracts multiple options from a line where options are written together on a single line, e.g.:
+ * "(A) 5% वृद्धि (B) 5% कमी (C) कोई परिवर्तन नहीं (D) 2% वृद्धि"
+ * or "(A) 25% (B) 28 4/7% (C) 30% (D) 33 1/3%"
+ * or "(A) Option 1 (B) Option 2 Answer: B"
+ */
+export function extractMultipleOptionsOnly(text: string): {
+  options: QuestionOption[];
+  inlineAnswer?: string;
+  explanation?: string;
+} | null {
+  const workingText = text.trim();
+  if (!workingText) return null;
+
+  // An option marker matching (A), (1), (क), A), 1), A., Option A, etc.
+  const optionMarkerRegex = /(?:\s+|^)(?:\(([A-Za-z]|(?:10|[1-9])|[क-ह]|i{1,3}|iv|v|vi{1,3}|ix|x|I{1,3}|IV|V|VI{1,3}|IX|X)\)|([A-Za-z]|[क-ह]|i{1,3}|iv|v|I{1,3}|IV|V)[\)\.](?!\d)|(?:10|[1-9])\)|(?:Option|विकल्प)\s*([A-Za-z]|(?:10|[1-9])|[क-ह]|i{1,3}|iv|v))\s*/gi;
+
+  const matches = Array.from(workingText.matchAll(optionMarkerRegex));
+  // Must have at least 2 options on the line
+  if (matches.length < 2) {
+    return null;
+  }
+
+  // Ensure first option is at or near the start (index <= 15) so it's not arbitrary text
+  const firstIndex = matches[0].index ?? -1;
+  if (firstIndex > 15) {
+    return null;
+  }
+
+  let answerPart = '';
+  let explanationPart = '';
+  let remainingOptionsText = workingText.substring(firstIndex);
+
+  const ansIndex = remainingOptionsText.search(/(?:उत्तर|Answer|Ans|Correct\s*(?:Answer|Option)?|सही\s*विकल्प)\s*[\:\-\=]/i);
+  if (ansIndex !== -1) {
+    const afterAns = remainingOptionsText.substring(ansIndex);
+    remainingOptionsText = remainingOptionsText.substring(0, ansIndex);
+
+    const explIndex = afterAns.search(/(?:Explanation|व्याख्या|समाधान|हल|Solution)\s*[\:\-\=]/i);
+    if (explIndex !== -1) {
+      answerPart = afterAns.substring(0, explIndex);
+      explanationPart = afterAns.substring(explIndex);
+    } else {
+      answerPart = afterAns;
+    }
+  }
+
+  const optMatches = Array.from(remainingOptionsText.matchAll(optionMarkerRegex));
+  if (optMatches.length < 2) return null;
+
+  const options: QuestionOption[] = [];
+
+  for (let i = 0; i < optMatches.length; i++) {
+    const curMatch = optMatches[i];
+    const rawLabel = curMatch[1] || curMatch[2] || curMatch[3];
+    const label = normalizeLabel(rawLabel);
+
+    const startIndex = (curMatch.index ?? 0) + curMatch[0].length;
+    const endIndex = (i + 1 < optMatches.length) 
+      ? (optMatches[i + 1].index ?? remainingOptionsText.length) 
+      : remainingOptionsText.length;
+
+    const optionText = remainingOptionsText.substring(startIndex, endIndex).trim();
+    if (label && optionText) {
+      options.push({ label, text: optionText });
+    }
+  }
+
+  let inlineAnswer: string | undefined;
+  if (answerPart) {
+    const cleanedAns = answerPart.replace(/(?:उत्तर|Answer|Ans|Correct\s*(?:Answer|Option)?|सही\s*विकल्प)\s*[\:\-\=]?\s*/i, '').trim();
+    inlineAnswer = extractAnswerKeyLetter(cleanedAns);
+  }
+
+  let explanation: string | undefined;
+  if (explanationPart) {
+    explanation = explanationPart.replace(/(?:Explanation|व्याख्या|समाधान|हल|Solution)\s*[\:\-\=]?\s*/i, '').trim();
+  }
+
+  return options.length >= 2 ? { options, inlineAnswer, explanation } : null;
+}
 
 /**
  * Extracts standard normalized answer label or option text
@@ -459,7 +540,35 @@ export function parseMCQContent(rawText: string): ParseResult {
       continue;
     }
 
-    // 4. Check for Option Line (supports 2 to 10 options: A-J, 1-10, क-ञ, i-x, etc.)
+    // 4A. Check if this line contains MULTIPLE options packed together on one line:
+    // e.g. "(A) 5% वृद्धि (B) 5% कमी (C) कोई परिवर्तन नहीं (D) 2% वृद्धि"
+    // or "(A) 25% (B) 28 4/7% (C) 30% (D) 33 1/3%"
+    const multiOptResult = extractMultipleOptionsOnly(line);
+    if (multiOptResult) {
+      if (!currentQuestion && skippedLines.length > 0) {
+        currentQuestion = {
+          sourceNumber: `${currentSet.questions.length + 1}`,
+          questionText: skippedLines.pop()!
+        };
+      }
+
+      if (currentQuestion) {
+        inExplanationMode = false;
+        multiOptResult.options.forEach(opt => {
+          currentOptions.push(opt);
+        });
+        if (multiOptResult.inlineAnswer) {
+          currentQuestion.inlineAnswer = multiOptResult.inlineAnswer;
+        }
+        if (multiOptResult.explanation) {
+          currentExplanation.push(multiOptResult.explanation);
+          inExplanationMode = true;
+        }
+        continue;
+      }
+    }
+
+    // 4B. Check for Single Option Line (supports 2 to 10 options: A-J, 1-10, क-ञ, i-x, etc.)
     const optionMatch = line.match(OPTION_START_REGEX);
     if (optionMatch && currentQuestion) {
       inExplanationMode = false;
